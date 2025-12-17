@@ -1,0 +1,43 @@
+name: Protect Branch
+
+on:
+  workflow_call:
+    inputs:
+      protected_branch:
+        required: true
+        type: string
+      allowed_prefixes:
+        type: string
+        default: "release/,hotfix/"
+        description: "Comma-separated list of allowed branch prefixes"
+
+jobs:
+  check-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close PR and comment if branch is not allowed
+        if: |
+          ${{ !contains(inputs.allowed_prefixes, github.head_ref) }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const allowedPrefixes = inputs.allowed_prefixes.split(",");
+            const isAllowed = allowedPrefixes.some(prefix => github.head_ref.startsWith(prefix));
+
+            if (!isAllowed) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `⚠️ This PR has been automatically closed.\n\nOnly branches starting with ${allowedPrefixes.map(p => `\`${p}\``).join(" or ")} can be merged into ${inputs.protected_branch}.`
+              });
+
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                state: 'closed'
+              });
+
+              core.setFailed(`Branch '${github.head_ref}' is not allowed to merge into ${inputs.protected_branch}`);
+            }
