@@ -23,7 +23,15 @@ jobs:
             const protectedBranch = '${{ inputs.protected_branch }}';
             const allowedPrefixes = '${{ inputs.allowed_prefixes }}'.split(',');
 
-            const isAllowed = allowedPrefixes.some(prefix => github.head_ref.startsWith(prefix));
+            // Get the PR branch name safely
+            const prBranch = context.payload.pull_request?.head?.ref;
+
+            if (!prBranch) {
+              core.setFailed('No pull request branch detected.');
+              return;
+            }
+
+            const isAllowed = allowedPrefixes.some(prefix => prBranch.startsWith(prefix));
 
             if (!isAllowed) {
               await github.rest.issues.createComment({
@@ -40,6 +48,5 @@ jobs:
                 state: 'closed'
               });
 
-              core.setFailed(`Branch '${github.head_ref}' is not allowed to merge into ${protectedBranch}`);
+              core.setFailed(`Branch '${prBranch}' is not allowed to merge into ${protectedBranch}`);
             }
-
