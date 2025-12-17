@@ -32,10 +32,13 @@ jobs:
           if [ -n "${{ inputs.node_version }}" ]; then
             echo "Using node version from input: ${{ inputs.node_version }}"
             echo "version=${{ inputs.node_version }}" >> $GITHUB_OUTPUT
-          else
+          elif [ -f ".nvmrc" ]; then
             nvm_version=$(cat .nvmrc)
             echo "Using node version from .nvmrc: $nvm_version"
             echo "version=$nvm_version" >> $GITHUB_OUTPUT
+          else
+            echo "No node version provided and .nvmrc not found. Exiting."
+            exit 1
           fi
 
       - name: Set up Node.js
