@@ -1,0 +1,72 @@
+name: Shopify Vite Build
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version to use"
+        required: true
+        type: string
+
+jobs:
+  build-and-commit:
+    if: ${{ github.event.head_commit.author.username != 'shopify[bot]' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+
+      - name: Configure npm resolver
+        run: npm config set legacy-peer-deps true
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --loglevel=error
+
+      - name: Build the project
+        run: npm run vite:build
+
+      - name: Purge old Vite assets
+        run: |
+          manifest="assets/.vite/manifest.json"
+          if [ -f "$manifest" ]; then
+            echo "Extracting build output files from manifest..."
+
+            jq -r '.. | strings | select(test("^(theme-).*(\\.js|\\.css)$"))' "$manifest" > keep.txt
+
+            echo "Files to keep (from manifest):"
+            cat keep.txt || echo "⚠️ No theme-* files found in manifest"
+
+            echo "Purging old assets/theme-* files..."
+            for file in assets/theme-*; do
+              base=$(basename "$file")
+              if ! grep -qx "$base" keep.txt; then
+                echo "🗑️ Deleting: $file"
+                rm -f "$file"
+              else
+                echo "✅ Keeping: $file"
+              fi
+            done
+          else
+            echo "⚠️ No manifest.json found, skipping purge"
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git add -f assets/theme-*
+          git add -f snippets/vite-tag.liquid
+
+          git commit -m "Build and update output [ci skip]" || echo "No changes to commit"
+          git push origin HEAD

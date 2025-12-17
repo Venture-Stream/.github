@@ -1,0 +1,36 @@
+name: NPM Audit
+
+on:
+  workflow_call:
+    inputs:
+      audit_level:
+        type: string
+        default: moderate
+      issue_assignees:
+        type: string
+        default: robjstanley
+      issue_labels:
+        type: string
+        default: vulnerability,npm
+    secrets:
+      AUDIT_ACTION_PAT:
+        required: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit and create issue
+        uses: oke-py/npm-audit-action@v3
+        with:
+          audit_level: ${{ inputs.audit_level }}
+          github_token: ${{ secrets.AUDIT_ACTION_PAT }}
+          issue_assignees: ${{ inputs.issue_assignees }}
+          issue_labels: ${{ inputs.issue_labels }}
+          dedupe_issues: true
