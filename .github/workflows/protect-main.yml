@@ -16,12 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Close PR and comment if branch is not allowed
-        if: |
-          ${{ !contains(inputs.allowed_prefixes, github.head_ref) }}
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const allowedPrefixes = inputs.allowed_prefixes.split(",");
+            const protectedBranch = '${{ inputs.protected_branch }}';
+            const allowedPrefixes = '${{ inputs.allowed_prefixes }}'.split(',');
+
             const isAllowed = allowedPrefixes.some(prefix => github.head_ref.startsWith(prefix));
 
             if (!isAllowed) {
@@ -29,7 +30,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: `⚠️ This PR has been automatically closed.\n\nOnly branches starting with ${allowedPrefixes.map(p => `\`${p}\``).join(" or ")} can be merged into ${inputs.protected_branch}.`
+                body: `⚠️ This PR has been automatically closed.\n\nOnly branches starting with ${allowedPrefixes.map(p => `\`${p}\``).join(" or ")} can be merged into ${protectedBranch}.`
               });
 
               await github.rest.pulls.update({
@@ -39,5 +40,6 @@ jobs:
                 state: 'closed'
               });
 
-              core.setFailed(`Branch '${github.head_ref}' is not allowed to merge into ${inputs.protected_branch}`);
+              core.setFailed(`Branch '${github.head_ref}' is not allowed to merge into ${protectedBranch}`);
             }
+
