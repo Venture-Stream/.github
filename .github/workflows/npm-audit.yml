@@ -29,19 +29,20 @@ jobs:
       - name: Determine Node.js version
         id: node_version
         run: |
+          VERSION=""
           if [ -n "${{ inputs.node_version }}" ]; then
-            echo "Using node version from input: ${{ inputs.node_version }}"
-            echo "version=${{ inputs.node_version }}" >> $GITHUB_OUTPUT
+            VERSION="${{ inputs.node_version }}"
+            echo "Using Node version from input: $VERSION"
           elif [ -f ".nvmrc" ]; then
-            nvm_version=$(cat .nvmrc)
-            echo "Using node version from .nvmrc: $nvm_version"
-            echo "version=$nvm_version" >> $GITHUB_OUTPUT
+            VERSION=$(cat .nvmrc)
+            echo "Using Node version from .nvmrc: $VERSION"
           else
-            echo "No node version provided and .nvmrc not found. Exiting."
-            exit 1
+            echo "No Node version specified and no .nvmrc found. Using default Node on runner."
           fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Node.js
+        if: steps.node_version.outputs.version != ''
         uses: actions/setup-node@v3
         with:
           node-version: ${{ steps.node_version.outputs.version }}
